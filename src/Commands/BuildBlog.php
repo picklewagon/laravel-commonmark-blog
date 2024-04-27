@@ -300,9 +300,10 @@ class BuildBlog extends Command
 
         // Render the file using the blade file and write it as index.htm into the directory.
         isset($data['locale']) ? app()->setLocale($data['locale']) : '';
+        $template = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.article';
         file_put_contents(
             $targetDirectory . '/index.htm',
-            view(config('blog.article_base_template'), $data)->render()
+            view(config($template), $data)->render()
         );
 
         // Return the generated header information with some additional details for internal handling.
@@ -357,6 +358,7 @@ class BuildBlog extends Command
         $this->info('- ' . $targetURL);
 
         // Find all related pages, sort them by date and chunk them up into pages.
+        $perPage = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.list_per_page';
         $chunkedArticles = collect($generatedArticles)
             // Only use the pages below this URL
             ->reject(function($item) use ($targetURL) {
@@ -367,11 +369,11 @@ class BuildBlog extends Command
             ->sortByDesc('modified')
 
             // Chunk the results into pages
-            ->chunk(config('blog.list_per_page', 12));
+            ->chunk(config($perPage, 12));
 
         // Process each chunk into a page
         $totalPages = $chunkedArticles->count();
-        $chunkedArticles->each(function($pageArticles, $index) use ($page, $targetURL, $totalPages) {
+        $chunkedArticles->each(function($pageArticles, $index) use ($page, $targetURL, $totalPages, $file) {
             $this->info('  creating page ' . ($index + 1) . ' of ' . $totalPages);
 
             // Generate a page for each chunk.
@@ -408,9 +410,10 @@ class BuildBlog extends Command
 
             // Render the file and write it.
             isset($data['locale']) ? app()->setLocale($data['locale']) : '';
+            $template = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.list';
             file_put_contents(
                 $targetDirectory . '/index.htm',
-                view(config('blog.list_base_template'), $data)->render()
+                view(config($template), $data)->render()
             );
 
             // Copy the index.htm to 1/index.htm, if it's the first page.

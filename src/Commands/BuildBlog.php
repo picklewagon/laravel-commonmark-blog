@@ -5,6 +5,7 @@ namespace Spekulatius\LaravelCommonmarkBlog\Commands;
 use Carbon\Carbon;
 use League\CommonMark\CommonMarkConverter;
 use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use Spatie\YamlFrontMatter\YamlFrontMatter;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
@@ -57,7 +58,9 @@ class BuildBlog extends Command
         parent::__construct();
 
         // Prepare the environment with the custom extensions.
-        $this->environment = Environment::createCommonMarkEnvironment();
+        $config = [];
+        $this->environment = new Environment($config);
+        $this->environment->addExtension(new CommonMarkCoreExtension());
         foreach (config('blog.extensions') as $extension) {
             $this->environment->addExtension($extension);
         }
@@ -113,20 +116,6 @@ class BuildBlog extends Command
             die;
         }
         $this->sourcePath = $sourcePath;
-
-        // Checks
-        if (is_null(config('blog.article_base_template'))) {
-            $this->error('No article base template defined.');
-            die;
-        }
-        if (is_null(config('blog.list_base_template'))) {
-            $this->error('No list base template defined.');
-            die;
-        }
-        if (is_null(config('blog.list_per_page'))) {
-            $this->error('No list per_page count defined.');
-            die;
-        }
     }
 
     /**
@@ -295,11 +284,18 @@ class BuildBlog extends Command
             mkdir($targetDirectory);
         }
 
+        // Figure out the template that should be used
+        $template = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.article';
+        if (is_null(config($template))) {
+            $this->error('No article base template [' . $template . '] defined.');
+            die;
+        }
+
         // Render the file using the blade file and write it as index.htm into the directory.
         isset($data['locale']) ? app()->setLocale($data['locale']) : '';
         file_put_contents(
             $targetDirectory . '/index.htm',
-            view(config('blog.article_base_template'), $data)->render()
+            view(config($template), $data)->render()
         );
 
         // Return the generated header information with some additional details for internal handling.
@@ -354,6 +350,7 @@ class BuildBlog extends Command
         $this->info('- ' . $targetURL);
 
         // Find all related pages, sort them by date and chunk them up into pages.
+        $perPage = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.list_per_page';
         $chunkedArticles = collect($generatedArticles)
             // Only use the pages below this URL
             ->reject(function($item) use ($targetURL) {
@@ -364,11 +361,11 @@ class BuildBlog extends Command
             ->sortByDesc('modified')
 
             // Chunk the results into pages
-            ->chunk(config('blog.list_per_page', 12));
+            ->chunk(config($perPage, 12));
 
         // Process each chunk into a page
         $totalPages = $chunkedArticles->count();
-        $chunkedArticles->each(function($pageArticles, $index) use ($page, $targetURL, $totalPages) {
+        $chunkedArticles->each(function($pageArticles, $index) use ($page, $targetURL, $totalPages, $file) {
             $this->info('  creating page ' . ($index + 1) . ' of ' . $totalPages);
 
             // Generate a page for each chunk.
@@ -403,11 +400,18 @@ class BuildBlog extends Command
                 ]
             );
 
+            // Figure out the template that should be used
+            $template = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.list';
+            if (is_null(config($template))) {
+                $this->error('No list base template [' . $template . '] defined.');
+                die;
+            }
+
             // Render the file and write it.
             isset($data['locale']) ? app()->setLocale($data['locale']) : '';
             file_put_contents(
                 $targetDirectory . '/index.htm',
-                view(config('blog.list_base_template'), $data)->render()
+                view(config($template), $data)->render()
             );
 
             // Copy the index.htm to 1/index.htm, if it's the first page.

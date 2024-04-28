@@ -7,11 +7,15 @@ return [
     | Source Path
     |--------------------------------------------------------------------------
     |
-    | In this path the package will look for md files to process.
+    | In this path the package will look for md files to process. The md files
+    | can be placed directly in source path or in sub folders of source path.
+    |
+    | Content types can be defined by adding folders of each content type
+    | as a subfolder in source path.
     |
     */
 
-    'source_path' => env('BLOG_SOURCE_PATH', null),
+    'source_path' => env('BLOG_SOURCE_PATH', 'resources/content'),
 
     /*
     |--------------------------------------------------------------------------
@@ -24,9 +28,13 @@ return [
     |
     */
 
-    'article_base_template' => env('BLOG_ARTICLE_BASE_TEMPLATE', null),
-    'list_base_template' => env('BLOG_LIST_BASE_TEMPLATE', null),
-    'list_per_page' => 12,
+    'templates' => [
+        'blog' => [
+            'article' => env('BLOG_ARTICLE_BASE_TEMPLATE', 'content/blog/article'),
+            'list' => env('BLOG_LIST_BASE_TEMPLATE', 'content/blog/list'),
+            'list_per_page' => 12,
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -102,13 +110,13 @@ return [
     | The generated articles (not lists), can be stored in the cache for other usage.
     | This allows usage in sidebars, "read also"-sections, etc.
     |
-    | This is deactive by default!
+    | This is inactive by default!
     | Set the cache key to a string, e.g. 'generated-articles' to activate it.
     |
     */
 
     'cache' => [
-        // Name of the key to store it under. Null means deactive.
+        // Name of the key to store it under. Null means inactive.
         'key' => null,
 
         // Seconds until expiry

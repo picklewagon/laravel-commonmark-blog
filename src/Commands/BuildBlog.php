@@ -116,20 +116,6 @@ class BuildBlog extends Command
             die;
         }
         $this->sourcePath = $sourcePath;
-
-        // Checks
-        if (is_null(config('blog.article_base_template'))) {
-            $this->error('No article base template defined.');
-            die;
-        }
-        if (is_null(config('blog.list_base_template'))) {
-            $this->error('No list base template defined.');
-            die;
-        }
-        if (is_null(config('blog.list_per_page'))) {
-            $this->error('No list per_page count defined.');
-            die;
-        }
     }
 
     /**
@@ -298,9 +284,15 @@ class BuildBlog extends Command
             mkdir($targetDirectory);
         }
 
+        // Figure out the template that should be used
+        $template = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.article';
+        if (is_null(config($template))) {
+            $this->error('No article base template [' . $template . '] defined.');
+            die;
+        }
+
         // Render the file using the blade file and write it as index.htm into the directory.
         isset($data['locale']) ? app()->setLocale($data['locale']) : '';
-        $template = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.article';
         file_put_contents(
             $targetDirectory . '/index.htm',
             view(config($template), $data)->render()
@@ -408,9 +400,15 @@ class BuildBlog extends Command
                 ]
             );
 
+            // Figure out the template that should be used
+            $template = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.list';
+            if (is_null(config($template))) {
+                $this->error('No list base template [' . $template . '] defined.');
+                die;
+            }
+
             // Render the file and write it.
             isset($data['locale']) ? app()->setLocale($data['locale']) : '';
-            $template = 'blog.templates.' . explode("/", $file->getRelativePathname())[0] . '.list';
             file_put_contents(
                 $targetDirectory . '/index.htm',
                 view(config($template), $data)->render()

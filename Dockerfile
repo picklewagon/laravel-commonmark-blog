@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libzip-dev \
     && docker-php-ext-install zip \
+    && pecl install xdebug \
+    && docker-php-ext-enable xdebug \
+    && echo "xdebug.mode=coverage" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Composer

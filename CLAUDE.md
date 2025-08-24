@@ -9,6 +9,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 composer test                    # Run PHPUnit tests
 composer test-coverage           # Run tests with coverage report
 vendor/bin/phpunit              # Direct PHPUnit execution
+
+# Docker Testing (for consistent environment)
+docker build -t laravel-commonmark-blog .     # Build test environment
+docker run --rm laravel-commonmark-blog       # Run all tests in Docker
+docker run --rm laravel-commonmark-blog composer test-coverage  # Run with coverage
 ```
 
 **Blog Building:**
@@ -21,6 +26,10 @@ php artisan blog:build /path    # Build from custom source path
 ```bash
 composer install               # Install dependencies
 php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-config"  # Publish config
+
+# CI/CD Testing (GitHub Actions runs automatically)
+# Tests across PHP 8.2/8.3 and Laravel 9/10/11/12 matrix
+# Includes both native PHP and Docker test environments
 ```
 
 ## Architecture Overview

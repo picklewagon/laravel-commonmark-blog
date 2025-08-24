@@ -1,0 +1,8 @@
+vendor/
+.git/
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+coverage/
+.phpunit.result.cache

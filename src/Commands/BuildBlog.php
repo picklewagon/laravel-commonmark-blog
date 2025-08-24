@@ -438,6 +438,9 @@ class BuildBlog extends Command
         // Merge the defaults in.
         $frontmatter = array_merge(config('blog.defaults', []), $frontmatter);
 
+        // Convert relative image URLs to absolute URLs for social media sharing
+        $frontmatter = $this->convertImageURLsToAbsolute($frontmatter);
+
         // Include the mix assets, if activated.
         $this->includeMixAssets();
 
@@ -516,6 +519,36 @@ class BuildBlog extends Command
                 }
             }
         }
+    }
+
+    /**
+     * Convert relative image URLs to absolute URLs for social media sharing
+     *
+     * @param array $frontmatter
+     * @return array
+     */
+    protected function convertImageURLsToAbsolute(array $frontmatter): array
+    {
+        // Convert main image URL
+        if (isset($frontmatter['image']) && is_string($frontmatter['image'])) {
+            $frontmatter['image'] = $this->makeURLAbsolute($frontmatter['image']);
+        }
+        
+        // Convert twitter image URLs
+        if (isset($frontmatter['twitter']) && is_array($frontmatter['twitter'])) {
+            if (isset($frontmatter['twitter']['image']) && is_string($frontmatter['twitter']['image'])) {
+                $frontmatter['twitter']['image'] = $this->makeURLAbsolute($frontmatter['twitter']['image']);
+            }
+        }
+        
+        // Convert og image URLs
+        if (isset($frontmatter['og']) && is_array($frontmatter['og'])) {
+            if (isset($frontmatter['og']['image']) && is_string($frontmatter['og']['image'])) {
+                $frontmatter['og']['image'] = $this->makeURLAbsolute($frontmatter['og']['image']);
+            }
+        }
+
+        return $frontmatter;
     }
 
     /**

@@ -219,6 +219,53 @@ You could also schedule the command in your `app/Console/Kernel.php` to ensure r
 Naturally, the way you integrate the blog in your project depends on the deployment tools and process.
 
 
+## Development & Testing
+
+### Running Tests
+
+The package includes comprehensive tests to ensure reliability and functionality.
+
+**Local Testing (requires PHP 8.2+ and Composer):**
+```bash
+composer test                    # Run all tests
+composer test-coverage          # Run tests with coverage report
+vendor/bin/phpunit              # Direct PHPUnit execution
+```
+
+**Docker Testing:**
+
+For consistent testing across environments, use the provided Docker setup:
+
+```bash
+# Build the Docker image
+docker build -t laravel-commonmark-blog .
+
+# Run tests
+docker run --rm laravel-commonmark-blog
+
+# Run tests with coverage
+docker run --rm laravel-commonmark-blog composer test-coverage
+```
+
+The Docker environment uses PHP 8.2 and includes all necessary dependencies for testing.
+
+**Continuous Integration:**
+
+Tests run automatically on GitHub Actions for:
+- PHP 8.2 and 8.3
+- Laravel 9, 10, 11, and 12
+- Both native PHP and Docker environments
+
+### Test Coverage
+
+The test suite covers:
+- Image URL conversion for social media sharing
+- Basic package functionality
+- Edge cases and error handling
+
+Tests are located in the `tests/` directory and follow PSR-4 autoloading standards.
+
+
 ## Contributing & License
 
 Please see [CONTRIBUTING](CONTRIBUTING.md) for details.

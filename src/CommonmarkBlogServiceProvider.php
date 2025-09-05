@@ -33,6 +33,11 @@ class CommonmarkBlogServiceProvider extends ServiceProvider
     {
         // Load the configuration
         $this->mergeConfigFrom(__DIR__.'/../config/blog.php', 'blog');
+
+        // Register the Blog helper class
+        $this->app->singleton('blog', function ($app) {
+            return new \Spekulatius\LaravelCommonmarkBlog\Blog();
+        });
     }
 
     /**

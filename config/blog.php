@@ -141,6 +141,29 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Taxonomies (Tags & Categories)
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for tags and categories support in blog posts.
+    | These settings control the generation of archive pages and URL structure.
+    |
+    */
+
+    'taxonomies' => [
+        'tags' => [
+            'enabled' => true,
+            'route_prefix' => 'tags',
+            'archive_template' => 'blog.tag-archive',
+        ],
+        'categories' => [
+            'enabled' => true,
+            'route_prefix' => 'categories',
+            'archive_template' => 'blog.category-archive',
+        ],
+    ],
+
     'defaults' => [
         // Charset and viewport.
         'charset' => 'utf-8',

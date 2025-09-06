@@ -1,8 +1,8 @@
 <?php
 
-namespace Tests\Unit;
+namespace Spekulatius\LaravelCommonmarkBlog\Tests\Unit;
 
-use Tests\TestCase;
+use Spekulatius\LaravelCommonmarkBlog\Tests\TestCase;
 use Spekulatius\LaravelCommonmarkBlog\Commands\BuildBlog;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Config;
@@ -16,13 +16,26 @@ class SEOTaxonomyTest extends TestCase
     {
         parent::setUp();
 
-        $this->buildBlog = new BuildBlog();
-        $this->tempSourcePath = storage_path('testing/seo_test');
+        // Create temporary directories for testing
+        $this->tempSourcePath = storage_path('testing/seo_source');
+        $this->tempPublicPath = storage_path('testing/seo_public');
 
+        // Clean up and create fresh directories
         if (File::exists($this->tempSourcePath)) {
             File::deleteDirectory($this->tempSourcePath);
         }
+        if (File::exists($this->tempPublicPath)) {
+            File::deleteDirectory($this->tempPublicPath);
+        }
+
         File::makeDirectory($this->tempSourcePath, 0755, true);
+        File::makeDirectory($this->tempPublicPath, 0755, true);
+
+        // Initialize BuildBlog command
+        $this->buildBlog = new BuildBlog();
+        
+        // Clear SEO state before each test
+        seo()->clear();
 
         // Configure basic blog settings
         Config::set('blog.defaults', [
@@ -41,38 +54,44 @@ class SEOTaxonomyTest extends TestCase
 
     public function test_auto_generates_keywords_from_tags_and_categories()
     {
-        // Create a test file with tags and categories but no explicit keywords
+        // Create a test markdown file with tags and categories but no keywords
         $content = <<<'MD'
 ---
-title: "Test Article"
-description: "A test article"
-published: "2025-01-15"
-modified: "2025-01-15"
+title: "Test Post"
+description: "A test post"
 tags: ["laravel", "php", "tutorial"]
 categories: ["Development", "Tutorials"]
 ---
 
-# Test Article
-
-This is test content.
+# Test Content
 MD;
 
-        $testFile = $this->tempSourcePath . '/test-article.md';
+        $testFile = $this->tempSourcePath . '/test-post.md';
         File::put($testFile, $content);
 
-        // Use reflection to access the protected prepareData method
+        // Use reflection to access the protected fillIn method
         $reflection = new \ReflectionClass($this->buildBlog);
-        $method = $reflection->getMethod('prepareData');
+        $method = $reflection->getMethod('fillIn');
         $method->setAccessible(true);
 
-        $data = $method->invoke($this->buildBlog, $testFile);
+        // Parse the frontmatter 
+        $article = \Spatie\YamlFrontMatter\YamlFrontMatter::parse($content);
+        $frontmatter = $article->matter();
 
-        // Verify that tags and categories are included in the data
-        $this->assertEquals(['laravel', 'php', 'tutorial'], $data['tags']);
-        $this->assertEquals(['Development', 'Tutorials'], $data['categories']);
+        // Call fillIn method which should set SEO keywords
+        $method->invoke($this->buildBlog, $frontmatter);
 
-        // The header should contain meta keywords generated from tags and categories
-        $this->assertStringContainsString('laravel, php, tutorial, Development, Tutorials', $data['header']);
+        // Check that keywords meta tag was added to SEO instance
+        $seoItems = seo()->getItems();
+        $keywordsTag = collect($seoItems)->first(function($item) {
+            return isset($item->tag) && 
+                   $item->tag === 'meta' && 
+                   isset($item->data['name']) && 
+                   $item->data['name'] === 'keywords';
+        });
+
+        $this->assertNotNull($keywordsTag, 'Keywords meta tag should be added');
+        $this->assertEquals('laravel, php, tutorial, Development, Tutorials', $keywordsTag->data['content']);
     }
 
     public function test_preserves_explicit_keywords_over_auto_generated()
@@ -80,33 +99,42 @@ MD;
         // Create a test file with explicit keywords and tags/categories
         $content = <<<'MD'
 ---
-title: "Test Article"
-description: "A test article"
-published: "2025-01-15"
-modified: "2025-01-15"
+title: "Test Post"
+description: "A test post"
 keywords: ["custom", "keywords"]
 tags: ["laravel", "php"]
 categories: ["Development"]
 ---
 
-# Test Article
-
-This is test content.
+# Test Content
 MD;
 
-        $testFile = $this->tempSourcePath . '/test-article.md';
+        $testFile = $this->tempSourcePath . '/test-explicit-keywords.md';
         File::put($testFile, $content);
 
-        // Use reflection to access the protected prepareData method
+        // Use reflection to access the protected fillIn method
         $reflection = new \ReflectionClass($this->buildBlog);
-        $method = $reflection->getMethod('prepareData');
+        $method = $reflection->getMethod('fillIn');
         $method->setAccessible(true);
 
-        $data = $method->invoke($this->buildBlog, $testFile);
+        // Parse the frontmatter 
+        $article = \Spatie\YamlFrontMatter\YamlFrontMatter::parse($content);
+        $frontmatter = $article->matter();
 
-        // Verify that explicit keywords are used, not auto-generated ones
-        $this->assertStringContainsString('custom, keywords', $data['header']);
-        $this->assertStringNotContainsString('laravel', $data['header']); // Should not appear in keywords
+        // Call fillIn method
+        $method->invoke($this->buildBlog, $frontmatter);
+
+        // Check that explicit keywords are preserved, not auto-generated ones
+        $seoItems = seo()->getItems();
+        $keywordsTag = collect($seoItems)->first(function($item) {
+            return isset($item->tag) && 
+                   $item->tag === 'meta' && 
+                   isset($item->data['name']) && 
+                   $item->data['name'] === 'keywords';
+        });
+
+        $this->assertNotNull($keywordsTag, 'Keywords meta tag should be added');
+        $this->assertEquals('custom, keywords', $keywordsTag->data['content']);
     }
 
     public function test_handles_missing_tags_and_categories_gracefully()
@@ -141,32 +169,42 @@ MD;
 
     public function test_handles_string_keywords_correctly()
     {
-        // Create a test file with string keywords instead of array
+        // Create a test file with string keywords (not array)
         $content = <<<'MD'
 ---
-title: "Test Article"
-description: "A test article"
-published: "2025-01-15"
-modified: "2025-01-15"
+title: "Test Post"
+description: "A test post"
 keywords: "string, keywords, format"
 ---
 
-# Test Article
-
-This is test content.
+# Test Content
 MD;
 
-        $testFile = $this->tempSourcePath . '/test-article.md';
+        $testFile = $this->tempSourcePath . '/test-string-keywords.md';
         File::put($testFile, $content);
 
-        // Use reflection to access the protected prepareData method
+        // Use reflection to access the protected fillIn method
         $reflection = new \ReflectionClass($this->buildBlog);
-        $method = $reflection->getMethod('prepareData');
+        $method = $reflection->getMethod('fillIn');
         $method->setAccessible(true);
 
-        $data = $method->invoke($this->buildBlog, $testFile);
+        // Parse the frontmatter 
+        $article = \Spatie\YamlFrontMatter\YamlFrontMatter::parse($content);
+        $frontmatter = $article->matter();
 
-        // Verify that string keywords are handled correctly
-        $this->assertStringContainsString('string, keywords, format', $data['header']);
+        // Call fillIn method
+        $method->invoke($this->buildBlog, $frontmatter);
+
+        // Check that string keywords are handled correctly
+        $seoItems = seo()->getItems();
+        $keywordsTag = collect($seoItems)->first(function($item) {
+            return isset($item->tag) && 
+                   $item->tag === 'meta' && 
+                   isset($item->data['name']) && 
+                   $item->data['name'] === 'keywords';
+        });
+
+        $this->assertNotNull($keywordsTag, 'Keywords meta tag should be added');
+        $this->assertEquals('string, keywords, format', $keywordsTag->data['content']);
     }
 }

@@ -1,8 +1,8 @@
 <?php
 
-namespace Tests\Unit;
+namespace Spekulatius\LaravelCommonmarkBlog\Tests\Unit;
 
-use Tests\TestCase;
+use Spekulatius\LaravelCommonmarkBlog\Tests\TestCase;
 use Spekulatius\LaravelCommonmarkBlog\Blog;
 use Illuminate\Support\Facades\Cache;
 
@@ -158,7 +158,8 @@ class BlogTaxonomyTest extends TestCase
         $searchResults = Blog::searchPosts('vue.js', $this->sampleArticles);
         
         $this->assertCount(1, $searchResults);
-        $this->assertStringContainsString('Vue.js Components', $searchResults[0]['title']);
+        $firstResult = array_values($searchResults)[0]; // Get first value regardless of key
+        $this->assertStringContainsString('Vue.js Components', $firstResult['title']);
     }
 
     public function test_can_use_cached_articles()

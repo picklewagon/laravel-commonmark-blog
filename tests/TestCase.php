@@ -16,6 +16,9 @@ class TestCase extends BaseTestCase
     {
         $app['config']->set('app.key', 'AckfSECXIvnK5r28GVIWUAxmbBSjTsmF');
         $app['config']->set('app.url', 'https://example.com');
+        
+        // Disable mix in testing to avoid manifest issues
+        $app['config']->set('blog.mix.active', false);
     }
 
     protected function getPackageProviders($app)

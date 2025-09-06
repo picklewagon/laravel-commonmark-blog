@@ -1,8 +1,8 @@
 <?php
 
-namespace Tests\Feature;
+namespace Spekulatius\LaravelCommonmarkBlog\Tests\Feature;
 
-use Tests\TestCase;
+use Spekulatius\LaravelCommonmarkBlog\Tests\TestCase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Config;
 use Spekulatius\LaravelCommonmarkBlog\Commands\BuildBlog;
@@ -30,6 +30,9 @@ class BuildBlogTaxonomyTest extends TestCase
 
         File::makeDirectory($this->tempSourcePath, 0755, true);
         File::makeDirectory($this->tempPublicPath, 0755, true);
+        
+        // Create blog subdirectory
+        File::makeDirectory($this->tempSourcePath . '/blog', 0755, true);
 
         // Configure the blog to use our test directories
         Config::set('blog.source_path', $this->tempSourcePath);
@@ -57,6 +60,11 @@ class BuildBlogTaxonomyTest extends TestCase
     {
         // Create mock view files that just return simple HTML
         $viewPath = resource_path('views');
+        
+        // Ensure views directory exists
+        if (!File::exists($viewPath)) {
+            File::makeDirectory($viewPath, 0755, true);
+        }
         
         if (!File::exists($viewPath . '/test-article-template.blade.php')) {
             File::put($viewPath . '/test-article-template.blade.php', 
@@ -162,9 +170,30 @@ MD;
             return $this->tempPublicPath;
         });
 
-        // Run the build command
-        $this->artisan('blog:build', ['source_path' => $this->tempSourcePath])
-             ->assertExitCode(0);
+        // Run the build command (rely on config for source path)
+        $result = $this->artisan('blog:build');
+        $result->assertExitCode(0);
+
+        // Debug: List source files
+        echo "\nSource directory: " . $this->tempSourcePath . "\n";
+        if (File::exists($this->tempSourcePath)) {
+            $sourceFiles = File::allFiles($this->tempSourcePath);
+            echo "Source files:\n";
+            foreach ($sourceFiles as $file) {
+                echo "- " . $file->getRelativePathname() . "\n";
+            }
+        }
+
+        // Debug: List what files were actually created
+        if (File::exists($this->tempPublicPath)) {
+            $files = File::allFiles($this->tempPublicPath);
+            echo "\nFiles created in " . $this->tempPublicPath . ":\n";
+            foreach ($files as $file) {
+                echo "- " . $file->getRelativePathname() . "\n";
+            }
+        } else {
+            echo "\nNo public directory created at: " . $this->tempPublicPath . "\n";
+        }
 
         // Verify the post was built but no archive pages were created
         $this->assertFileExists($this->tempPublicPath . '/blog/simple-post/index.htm');

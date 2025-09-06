@@ -217,15 +217,27 @@ Configure taxonomy behavior in `config/blog.php`:
     'tags' => [
         'enabled' => true,                    // Enable/disable tag archives
         'route_prefix' => 'tags',             // URL prefix (/tags/{tag}/)
-        'archive_template' => 'blog.tag-archive', // Custom template (optional)
+        'archive_template' => 'blog.tag-archive', // Custom template
     ],
     'categories' => [
         'enabled' => true,                    // Enable/disable category archives  
         'route_prefix' => 'categories',       // URL prefix (/categories/{category}/)
-        'archive_template' => 'blog.category-archive', // Custom template (optional)
+        'archive_template' => 'blog.category-archive', // Custom template
     ],
 ],
 ```
+
+**Custom Templates**: The package includes beautiful, responsive default templates that you can publish and customize:
+
+```bash
+php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-views"
+```
+
+This publishes fully-styled templates to `resources/views/blog/` including:
+- **Archive pages** with breadcrumbs, pagination, and related links
+- **Overview pages** with tag clouds and category grids  
+- **Responsive design** that works on all devices
+- **SEO-optimized** structure with proper headings and meta data
 
 #### Using the Blog Helper Class
 
@@ -308,6 +320,22 @@ Next, publish the configuration file:
 ```bash
 php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-config"
 ```
+
+**Optional: Publish taxonomy view templates for customization:**
+
+```bash
+# Publish taxonomy view templates only
+php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-views"
+
+# Or publish both config and views at once
+php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-all"
+```
+
+This will publish customizable view templates to `resources/views/blog/`:
+- `tag-archive.blade.php` - Template for tag archive pages (`/tags/{tag}/`)
+- `category-archive.blade.php` - Template for category archive pages (`/categories/{category}/`)  
+- `tags-overview.blade.php` - Template for tags overview page (`/tags/`)
+- `categories-overview.blade.php` - Template for categories overview page (`/categories/`)
 
 Review, extend and adjust the configuration under `config/blog.php` as needed. The required minimum is a `BLOG_SOURCE_PATH` and some default frontmatter.
 

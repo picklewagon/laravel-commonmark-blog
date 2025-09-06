@@ -52,9 +52,21 @@ class CommonmarkBlogServiceProvider extends ServiceProvider
     public function publishConfig()
     {
         if ($this->app->runningInConsole()) {
+            // Publish configuration
             $this->publishes([
                 __DIR__ . '/../config/blog.php' => config_path('blog.php'),
             ], 'blog-config');
+
+            // Publish taxonomy view templates
+            $this->publishes([
+                __DIR__ . '/../resources/views/blog' => resource_path('views/blog'),
+            ], 'blog-views');
+
+            // Publish both config and views together
+            $this->publishes([
+                __DIR__ . '/../config/blog.php' => config_path('blog.php'),
+                __DIR__ . '/../resources/views/blog' => resource_path('views/blog'),
+            ], 'blog-all');
         }
     }
 

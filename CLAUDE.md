@@ -26,6 +26,8 @@ php artisan blog:build /path    # Build from custom source path
 ```bash
 composer install               # Install dependencies
 php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-config"  # Publish config
+php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-views"   # Publish taxonomy view templates
+php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-all"     # Publish config and views
 
 # CI/CD Testing (GitHub Actions runs automatically)
 # Tests across PHP 8.2/8.3 and Laravel 9/10/11/12 matrix
@@ -39,6 +41,7 @@ This is a Laravel package that converts Markdown files into static HTML blog pag
 **Service Provider (`src/CommonmarkBlogServiceProvider.php`):**
 - Registers the `blog:build` command
 - Publishes configuration to consuming applications
+- **Publishes customizable taxonomy view templates**
 - Integrates with Laravel's service container
 - Registers the Blog helper class for taxonomy operations
 
@@ -97,4 +100,5 @@ This is a Laravel package that converts Markdown files into static HTML blog pag
 - Blog helper methods: `Blog::getPostsByTag()`, `Blog::getPostsByCategory()`, etc.
 - **SEO enhancement**: Auto-generated meta keywords from tags/categories when not explicitly set
 - Configurable route prefixes and custom archive templates
+- **Publishable view templates**: Beautiful, responsive default templates for customization
 - Can be disabled independently via configuration

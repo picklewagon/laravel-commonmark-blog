@@ -2,6 +2,23 @@
 
 This document provides practical examples of using the tags and categories features.
 
+## Quick Start with Published Templates
+
+The easiest way to get started is to publish the default templates and customize them:
+
+```bash
+# Publish customizable taxonomy view templates
+php artisan vendor:publish --provider="Spekulatius\LaravelCommonmarkBlog\CommonmarkBlogServiceProvider" --tag="blog-views"
+```
+
+This creates the following files in `resources/views/blog/`:
+- `tag-archive.blade.php` - Beautiful tag archive pages with tag clouds
+- `category-archive.blade.php` - Category archive pages with related categories  
+- `tags-overview.blade.php` - Tag overview page with size-based tag cloud
+- `categories-overview.blade.php` - Category overview with card-based layout
+
+These templates are fully responsive, SEO-optimized, and include embedded CSS styling.
+
 ## Basic Example Blog Post
 
 Create a blog post with tags and categories in `resources/content/blog/laravel-tutorial.md`:

@@ -95,6 +95,35 @@ Update your article template (`resources/views/blog/article.blade.php`) to displ
             @endif
         </footer>
     </article>
+
+    {{-- Related Posts Section --}}
+    @if(isset($relatedPosts) && count($relatedPosts) > 0)
+        <section class="related-posts">
+            <h3>Related Articles</h3>
+            <div class="related-posts-grid">
+                @foreach($relatedPosts as $relatedPost)
+                    <article class="related-post">
+                        <h4>
+                            <a href="{{ $relatedPost['absolute_url'] }}">{{ $relatedPost['title'] }}</a>
+                        </h4>
+                        @if(isset($relatedPost['description']))
+                            <p>{{ Str::limit($relatedPost['description'], 100) }}</p>
+                        @endif
+                        <div class="related-post-meta">
+                            <time>{{ \Carbon\Carbon::parse($relatedPost['published'])->format('M j, Y') }}</time>
+                            @if(isset($relatedPost['categories']))
+                                <span class="categories">
+                                    @foreach(array_slice($relatedPost['categories'], 0, 2) as $category)
+                                        <span class="category">{{ $category }}</span>
+                                    @endforeach
+                                </span>
+                            @endif
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
 </body>
 </html>
 ```
@@ -184,6 +213,20 @@ class BlogController extends Controller
         return view('blog.index', [
             'posts' => $recentPosts['articles'],
             'tags' => $popularTags,
+        ]);
+    }
+    
+    public function show($slug, Request $request)
+    {
+        // Get the current post (implementation depends on your setup)
+        $currentPost = $this->getCurrentPost($slug);
+        
+        // Get related posts based on shared tags/categories
+        $relatedPosts = Blog::getRelatedPosts($currentPost, 5);
+        
+        return view('blog.article', [
+            'post' => $currentPost,
+            'relatedPosts' => $relatedPosts,
         ]);
     }
     
@@ -342,6 +385,64 @@ Add some basic styling for taxonomy elements:
     margin: 0 1rem;
     text-decoration: none;
     color: #0277bd;
+}
+
+/* Related posts styling */
+.related-posts {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 2px solid #eee;
+}
+
+.related-posts h3 {
+    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.related-posts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.related-post {
+    padding: 1rem;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.related-post h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.related-post h4 a {
+    text-decoration: none;
+    color: #333;
+}
+
+.related-post h4 a:hover {
+    color: #0277bd;
+}
+
+.related-post p {
+    margin: 0.5rem 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.related-post-meta {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 0.5rem;
+}
+
+.related-post-meta .category {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 0.5rem;
 }
 ```
 

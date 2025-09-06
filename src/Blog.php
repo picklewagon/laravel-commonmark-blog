@@ -157,4 +157,75 @@ class Blog
             return strpos($searchableText, $query) !== false;
         });
     }
+
+    /**
+     * Get related posts based on shared tags and categories
+     *
+     * @param array $currentPost
+     * @param int $limit
+     * @param array $articles
+     * @return array
+     */
+    public static function getRelatedPosts(array $currentPost, int $limit = 5, array $articles = null): array
+    {
+        if ($articles === null) {
+            $articles = Cache::get(config('blog.cache.key'), []);
+        }
+
+        $currentTags = $currentPost['tags'] ?? [];
+        $currentCategories = $currentPost['categories'] ?? [];
+        $currentUrl = $currentPost['absolute_url'] ?? '';
+
+        // Score articles based on shared taxonomies
+        $scoredArticles = [];
+        
+        foreach ($articles as $article) {
+            // Skip the current post
+            if (($article['absolute_url'] ?? '') === $currentUrl) {
+                continue;
+            }
+
+            $score = 0;
+            $articleTags = $article['tags'] ?? [];
+            $articleCategories = $article['categories'] ?? [];
+
+            // Score based on shared tags (2 points each)
+            foreach ($currentTags as $tag) {
+                if (in_array($tag, $articleTags)) {
+                    $score += 2;
+                }
+            }
+
+            // Score based on shared categories (3 points each - categories are broader)
+            foreach ($currentCategories as $category) {
+                if (in_array($category, $articleCategories)) {
+                    $score += 3;
+                }
+            }
+
+            if ($score > 0) {
+                $scoredArticles[] = [
+                    'article' => $article,
+                    'score' => $score,
+                ];
+            }
+        }
+
+        // Sort by score (highest first), then by date
+        usort($scoredArticles, function($a, $b) {
+            if ($a['score'] === $b['score']) {
+                $dateA = strtotime($a['article']['modified'] ?? '1970-01-01');
+                $dateB = strtotime($b['article']['modified'] ?? '1970-01-01');
+                return $dateB - $dateA; // Newer first
+            }
+            return $b['score'] - $a['score']; // Higher score first
+        });
+
+        // Return just the articles, limited to the specified number
+        return array_slice(
+            array_column($scoredArticles, 'article'), 
+            0, 
+            $limit
+        );
+    }
 }

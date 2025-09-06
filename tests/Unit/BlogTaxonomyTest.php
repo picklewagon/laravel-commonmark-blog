@@ -171,4 +171,58 @@ class BlogTaxonomyTest extends TestCase
         $phpPosts = Blog::getPostsByTag('php');
         $this->assertCount(2, $phpPosts);
     }
+
+    public function test_can_get_related_posts()
+    {
+        $currentPost = [
+            'title' => 'Advanced Laravel Techniques',
+            'tags' => ['laravel', 'php'],
+            'categories' => ['Development'],
+            'absolute_url' => '/advanced-laravel/',
+            'modified' => '2025-01-16',
+        ];
+
+        $relatedPosts = Blog::getRelatedPosts($currentPost, 3, $this->sampleArticles);
+        
+        // Should find related posts based on shared tags/categories
+        $this->assertGreaterThan(0, count($relatedPosts));
+        
+        // Should not include the current post
+        foreach ($relatedPosts as $post) {
+            $this->assertNotEquals('/advanced-laravel/', $post['absolute_url'] ?? '');
+        }
+    }
+
+    public function test_related_posts_scoring()
+    {
+        $currentPost = [
+            'title' => 'PHP Best Practices Advanced',
+            'tags' => ['php', 'best-practices'],
+            'categories' => ['Development'],
+            'absolute_url' => '/php-advanced/',
+            'modified' => '2025-01-16',
+        ];
+
+        $relatedPosts = Blog::getRelatedPosts($currentPost, 5, $this->sampleArticles);
+        
+        // First related post should be "PHP Best Practices" (high score due to shared tags and category)
+        $this->assertCount(2, $relatedPosts); // Should find Laravel Tutorial and PHP Best Practices
+        
+        // Verify the most related post comes first (shared tags + category)
+        $titles = array_column($relatedPosts, 'title');
+        $this->assertContains('PHP Best Practices', $titles);
+        $this->assertContains('Laravel Tutorial', $titles);
+    }
+
+    public function test_related_posts_excludes_current_post()
+    {
+        $currentPost = $this->sampleArticles[0]; // Laravel Tutorial
+        
+        $relatedPosts = Blog::getRelatedPosts($currentPost, 5, $this->sampleArticles);
+        
+        // Should not include the current post
+        $currentTitle = $currentPost['title'];
+        $relatedTitles = array_column($relatedPosts, 'title');
+        $this->assertNotContains($currentTitle, $relatedTitles);
+    }
 }

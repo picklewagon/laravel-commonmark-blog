@@ -22,6 +22,10 @@ class CommonmarkBlogServiceProvider extends ServiceProvider
                 BuildBlog::class,
             ]);
         }
+
+        // Register the facade alias
+        $loader = \Illuminate\Foundation\AliasLoader::getInstance();
+        $loader->alias('Blog', \Spekulatius\LaravelCommonmarkBlog\Facades\Blog::class);
     }
 
     /**

@@ -244,12 +244,17 @@ $allTags = Blog::getAllTags();
 // Get all available categories
 $allCategories = Blog::getAllCategories();
 
+// Get related posts based on shared tags/categories
+$relatedPosts = Blog::getRelatedPosts($currentPost, 5);
+
 // Search posts
 $searchResults = Blog::searchPosts('Laravel tutorial');
 
 // Get paginated posts
 $paginated = Blog::getPaginatedPosts(10, 1); // 10 per page, page 1
 ```
+
+**Note:** The `Blog` helper is available both as a Facade (`Blog::getPostsByTag()`) and through the service container.
 
 #### Template Integration
 

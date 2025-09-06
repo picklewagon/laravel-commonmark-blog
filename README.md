@@ -43,11 +43,18 @@ With a focus on SEO, CommonMark is the logical choice: It is highly extensible a
 
   The `locale` in the frontmatter will be set on the app before rendering the templates.
 
+- **Tags and Categories**: Full taxonomy support for organizing and categorizing blog posts.
+
+  Add tags and categories to your frontmatter to automatically generate archive pages and enable content filtering.
+
+  Archive pages are generated at `/tags/{tag}/` and `/categories/{category}/` with SEO-optimized meta tags.
+
 ### SEO-Enhancements
 
 There are several SEO improvements included or easily configurable via extensions:
 
 - Meta-tags, Twitter Card, and Facebook Open-Graph from the post-frontmatter or globally
+- **Automatic keyword generation** from tags and categories when no explicit keywords are provided
 - Adding lazy-loading attributes to images (optional via extension)
 - Global definitions of `rel`-attributes for root-domain, sub-domains, and external links (optional via extension)
 
@@ -74,12 +81,21 @@ Any blog page is following a simple structure using Frontmatter & Commonmark. Th
 title: "The Love of Code"
 description: "Why I love to code."
 image: "/images/code.jpg"
+tags: ["programming", "development", "passion"]
+categories: ["Personal", "Programming"]
 ---
 
 # The Love Of Code
 
 ....
 ```
+
+**Tags and Categories** can be added as arrays in the frontmatter to organize your content:
+
+- **Tags**: Fine-grained labels for content topics (e.g., "laravel", "php", "tutorial")
+- **Categories**: Broader content groupings (e.g., "Development", "Tutorials", "News")
+
+Both generate automatic archive pages and improve SEO through auto-generated meta keywords.
 
 Default values can be set under `defaults` in the config file. If you are unsure which headers to include consult [joshbuchea/HEAD](https://github.com/joshbuchea/HEAD).
 
@@ -160,6 +176,111 @@ hreflang:
 ```
 
 **Please note:** This doesn't consider embargo (delayed publishing) at the moment. You will need to ensure that your site doesn't reference a not-yet-published article manually.
+
+### Using Tags and Categories
+
+The package provides comprehensive taxonomy support for organizing blog content with tags and categories.
+
+#### Adding Tags and Categories to Posts
+
+Add tags and categories as arrays in your post frontmatter:
+
+```yaml
+---
+title: "Laravel Best Practices"
+description: "Essential Laravel development practices"
+published: "2025-01-15"
+tags: ["laravel", "php", "best-practices", "web-development"]
+categories: ["Development", "Tutorials"]
+---
+
+# Laravel Best Practices
+
+Your content here...
+```
+
+#### Generated Archive Pages
+
+The build process automatically creates archive pages for each tag and category:
+
+- **Tag archives**: `/tags/laravel/`, `/tags/php/`, etc.
+- **Category archives**: `/categories/development/`, `/categories/tutorials/`, etc.
+
+Each archive page lists all posts with that tag or category, sorted by date (newest first).
+
+#### Taxonomy Configuration
+
+Configure taxonomy behavior in `config/blog.php`:
+
+```php
+'taxonomies' => [
+    'tags' => [
+        'enabled' => true,                    // Enable/disable tag archives
+        'route_prefix' => 'tags',             // URL prefix (/tags/{tag}/)
+        'archive_template' => 'blog.tag-archive', // Custom template (optional)
+    ],
+    'categories' => [
+        'enabled' => true,                    // Enable/disable category archives  
+        'route_prefix' => 'categories',       // URL prefix (/categories/{category}/)
+        'archive_template' => 'blog.category-archive', // Custom template (optional)
+    ],
+],
+```
+
+#### Using the Blog Helper Class
+
+Access taxonomy data programmatically using the Blog helper:
+
+```php
+// Get posts by tag
+$laravelPosts = Blog::getPostsByTag('laravel');
+
+// Get posts by category  
+$tutorials = Blog::getPostsByCategory('Tutorials');
+
+// Get all available tags
+$allTags = Blog::getAllTags();
+
+// Get all available categories
+$allCategories = Blog::getAllCategories();
+
+// Search posts
+$searchResults = Blog::searchPosts('Laravel tutorial');
+
+// Get paginated posts
+$paginated = Blog::getPaginatedPosts(10, 1); // 10 per page, page 1
+```
+
+#### Template Integration
+
+Tags and categories are automatically available in your article templates:
+
+```blade
+{{-- In your article.blade.php template --}}
+@if(isset($tags) && count($tags) > 0)
+    <div class="post-tags">
+        <span>Tags:</span>
+        @foreach($tags as $tag)
+            <a href="/tags/{{ Str::slug($tag) }}" class="tag">{{ $tag }}</a>
+        @endforeach
+    </div>
+@endif
+
+@if(isset($categories) && count($categories) > 0)
+    <div class="post-categories">
+        <span>Categories:</span>
+        @foreach($categories as $category)
+            <a href="/categories/{{ Str::slug($category) }}" class="category">{{ $category }}</a>
+        @endforeach
+    </div>
+@endif
+```
+
+#### SEO Benefits
+
+- **Auto-generated keywords**: When no explicit `keywords` are defined, the system automatically generates meta keywords from tags and categories
+- **Structured content**: Archive pages provide additional indexed content and internal linking
+- **Better organization**: Improved content discoverability for both users and search engines
 
 ## Requirements & Installation
 
@@ -259,6 +380,8 @@ Tests run automatically on GitHub Actions for:
 ### Test Coverage
 
 The test suite covers:
+- **Taxonomy features**: Tags, categories, archive generation, and Blog helper methods
+- **SEO functionality**: Auto-generated keywords and meta tag handling
 - Image URL conversion for social media sharing
 - Basic package functionality
 - Edge cases and error handling

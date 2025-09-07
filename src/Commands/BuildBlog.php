@@ -206,6 +206,9 @@ class BuildBlog extends Command
             unlink(public_path($listFile->getRelativePathname()));
         }
 
+        // Generate taxonomy archive pages
+        $this->generateTaxonomyArchives($generatedArticles);
+
         // Return the list of generated articles for later caching.
         return $generatedArticles;
     }
@@ -568,6 +571,23 @@ class BuildBlog extends Command
             seo()->add(Meta::make()->name('keywords')->content($keywords));
         }
 
+        // Auto-generate keywords from tags and categories if no explicit keywords are set
+        if (!isset($frontmatter['keywords']) && (isset($frontmatter['tags']) || isset($frontmatter['categories']))) {
+            $autoKeywords = [];
+            
+            if (isset($frontmatter['tags']) && is_array($frontmatter['tags'])) {
+                $autoKeywords = array_merge($autoKeywords, $frontmatter['tags']);
+            }
+            
+            if (isset($frontmatter['categories']) && is_array($frontmatter['categories'])) {
+                $autoKeywords = array_merge($autoKeywords, $frontmatter['categories']);
+            }
+            
+            if (!empty($autoKeywords)) {
+                seo()->add(Meta::make()->name('keywords')->content(implode(', ', $autoKeywords)));
+            }
+        }
+
         // Published
         if (isset($frontmatter['published'])) {
             $date = (new Carbon($frontmatter['published']));
@@ -650,5 +670,138 @@ class BuildBlog extends Command
             config('app.url') .
             (Str::endsWith(config('app.url'), '/') ? $uri : Str::start($uri, '/'))
         );
+    }
+
+    /**
+     * Generate taxonomy archive pages (tags and categories)
+     *
+     * @param array $generatedArticles
+     * @return void
+     * @throws \League\CommonMark\Exception\CommonMarkException
+     */
+    protected function generateTaxonomyArchives(array $generatedArticles): void
+    {
+        $this->newLine();
+        $this->info('Generating taxonomy archives');
+
+        // Process tags if enabled
+        if (config('blog.taxonomies.tags.enabled', true)) {
+            $this->generateTaxonomyArchive('tags', $generatedArticles);
+        }
+
+        // Process categories if enabled
+        if (config('blog.taxonomies.categories.enabled', true)) {
+            $this->generateTaxonomyArchive('categories', $generatedArticles);
+        }
+    }
+
+    /**
+     * Generate archive pages for a specific taxonomy (tags or categories)
+     *
+     * @param string $taxonomyType
+     * @param array $generatedArticles
+     * @return void
+     * @throws \League\CommonMark\Exception\CommonMarkException
+     */
+    protected function generateTaxonomyArchive(string $taxonomyType, array $generatedArticles): void
+    {
+        $taxonomy = $this->getAllTaxonomyTerms($taxonomyType, $generatedArticles);
+        
+        if (empty($taxonomy)) {
+            return;
+        }
+
+        $routePrefix = config("blog.taxonomies.{$taxonomyType}.route_prefix", $taxonomyType);
+        $this->info("- {$taxonomyType}: " . count($taxonomy) . ' terms found');
+
+        foreach ($taxonomy as $term => $articles) {
+            $this->generateTaxonomyTermPage($taxonomyType, $term, $articles, $routePrefix);
+        }
+    }
+
+    /**
+     * Generate a page for a specific taxonomy term
+     *
+     * @param string $taxonomyType
+     * @param string $term
+     * @param array $articles
+     * @param string $routePrefix
+     * @return void
+     * @throws \League\CommonMark\Exception\CommonMarkException
+     */
+    protected function generateTaxonomyTermPage(string $taxonomyType, string $term, array $articles, string $routePrefix): void
+    {
+        $slug = Str::slug($term);
+        $targetURL = "/{$routePrefix}/{$slug}/";
+        $targetDirectory = public_path($targetURL);
+
+        if (!file_exists($targetDirectory)) {
+            mkdir($targetDirectory, 0755, true);
+        }
+
+        // Sort articles by date
+        $sortedArticles = collect($articles)->sortByDesc('modified');
+
+        // Prepare data for the template
+        $data = array_merge(config('blog.defaults', []), [
+            'title' => ucfirst($taxonomyType) . ': ' . $term,
+            'description' => "Articles tagged with {$term}",
+            'canonical' => $this->makeURLAbsolute($targetURL),
+            'header' => $this->prepareLaravelSEOHeaders([
+                'title' => ucfirst($taxonomyType) . ': ' . $term,
+                'description' => "Articles tagged with {$term}",
+                'canonical' => $this->makeURLAbsolute($targetURL),
+            ]),
+            'content' => '',
+            'articles' => $sortedArticles,
+            'taxonomy_type' => $taxonomyType,
+            'taxonomy_term' => $term,
+            'base_url' => $this->makeURLAbsolute($targetURL),
+            'total_pages' => 1,
+            'current_page' => 1,
+        ]);
+
+        // Use configured template or fallback to blog list template
+        $template = config("blog.taxonomies.{$taxonomyType}.archive_template");
+        if (is_null($template) || is_null(config($template)) || !view()->exists(config($template))) {
+            // Fallback to the first available blog list template
+            $template = 'blog.templates.blog.list';
+        }
+
+        if (is_null(config($template))) {
+            $this->error("No archive template [{$template}] defined for {$taxonomyType}.");
+            return;
+        }
+
+        // Render and save the file
+        file_put_contents(
+            $targetDirectory . '/index.htm',
+            view(config($template), $data)->render()
+        );
+    }
+
+    /**
+     * Get all terms for a specific taxonomy from generated articles
+     *
+     * @param string $taxonomyType
+     * @param array $generatedArticles
+     * @return array
+     */
+    protected function getAllTaxonomyTerms(string $taxonomyType, array $generatedArticles): array
+    {
+        $taxonomy = [];
+
+        foreach ($generatedArticles as $article) {
+            if (isset($article[$taxonomyType]) && is_array($article[$taxonomyType])) {
+                foreach ($article[$taxonomyType] as $term) {
+                    if (!isset($taxonomy[$term])) {
+                        $taxonomy[$term] = [];
+                    }
+                    $taxonomy[$term][] = $article;
+                }
+            }
+        }
+
+        return $taxonomy;
     }
 }

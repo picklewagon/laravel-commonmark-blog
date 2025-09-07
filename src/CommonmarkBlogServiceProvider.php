@@ -22,6 +22,10 @@ class CommonmarkBlogServiceProvider extends ServiceProvider
                 BuildBlog::class,
             ]);
         }
+
+        // Register the facade alias
+        $loader = \Illuminate\Foundation\AliasLoader::getInstance();
+        $loader->alias('Blog', \Spekulatius\LaravelCommonmarkBlog\Facades\Blog::class);
     }
 
     /**
@@ -33,6 +37,11 @@ class CommonmarkBlogServiceProvider extends ServiceProvider
     {
         // Load the configuration
         $this->mergeConfigFrom(__DIR__.'/../config/blog.php', 'blog');
+
+        // Register the Blog helper class
+        $this->app->singleton('blog', function ($app) {
+            return new \Spekulatius\LaravelCommonmarkBlog\Blog();
+        });
     }
 
     /**
@@ -43,9 +52,21 @@ class CommonmarkBlogServiceProvider extends ServiceProvider
     public function publishConfig()
     {
         if ($this->app->runningInConsole()) {
+            // Publish configuration
             $this->publishes([
                 __DIR__ . '/../config/blog.php' => config_path('blog.php'),
             ], 'blog-config');
+
+            // Publish taxonomy view templates
+            $this->publishes([
+                __DIR__ . '/../resources/views/blog' => resource_path('views/blog'),
+            ], 'blog-views');
+
+            // Publish both config and views together
+            $this->publishes([
+                __DIR__ . '/../config/blog.php' => config_path('blog.php'),
+                __DIR__ . '/../resources/views/blog' => resource_path('views/blog'),
+            ], 'blog-all');
         }
     }
 

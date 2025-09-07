@@ -763,7 +763,7 @@ class BuildBlog extends Command
 
         // Use configured template or fallback to blog list template
         $template = config("blog.taxonomies.{$taxonomyType}.archive_template");
-        if (is_null($template) || !view()->exists($template)) {
+        if (is_null($template) || is_null(config($template)) || !view()->exists(config($template))) {
             // Fallback to the first available blog list template
             $template = 'blog.templates.blog.list';
         }

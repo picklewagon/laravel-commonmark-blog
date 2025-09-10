@@ -687,11 +687,13 @@ class BuildBlog extends Command
         // Process tags if enabled
         if (config('blog.taxonomies.tags.enabled', true)) {
             $this->generateTaxonomyArchive('tags', $generatedArticles);
+            $this->generateTaxonomyOverviewIndex('tags');
         }
 
         // Process categories if enabled
         if (config('blog.taxonomies.categories.enabled', true)) {
             $this->generateTaxonomyArchive('categories', $generatedArticles);
+            $this->generateTaxonomyOverviewIndex('categories');
         }
     }
 
@@ -803,5 +805,65 @@ class BuildBlog extends Command
         }
 
         return $taxonomy;
+    }
+
+    /**
+     * Generate overview index file for a taxonomy directory
+     *
+     * This creates a static index.htm file in the taxonomy directory that redirects
+     * to the Laravel route for the taxonomy overview page, solving the 403 Forbidden
+     * error when accessing /blog/tags/ or /blog/categories/ directly.
+     *
+     * @param string $taxonomyType
+     * @return void
+     */
+    protected function generateTaxonomyOverviewIndex(string $taxonomyType): void
+    {
+        $routePrefix = config("blog.taxonomies.{$taxonomyType}.route_prefix", $taxonomyType);
+        $taxonomyDir = public_path($routePrefix);
+        
+        // Only generate index if the taxonomy directory exists (has individual archive pages)
+        if (!is_dir($taxonomyDir)) {
+            return;
+        }
+        
+        $indexPath = $taxonomyDir . '/index.htm';
+        $redirectUrl = "/{$routePrefix}/";
+        $title = ucfirst($taxonomyType) . ' - ' . (config('app.name', 'Blog'));
+        
+        $content = $this->generateTaxonomyIndexContent($redirectUrl, $title, $taxonomyType);
+        
+        file_put_contents($indexPath, $content);
+        $this->line("Generated overview index: {$routePrefix}/index.htm");
+    }
+
+    /**
+     * Generate the HTML content for taxonomy overview index files
+     *
+     * @param string $redirectUrl
+     * @param string $title
+     * @param string $taxonomyType
+     * @return string
+     */
+    protected function generateTaxonomyIndexContent(string $redirectUrl, string $title, string $taxonomyType): string
+    {
+        $taxonomyLabel = ucfirst($taxonomyType);
+        
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="0;url={$redirectUrl}">
+    <link rel="canonical" href="{$redirectUrl}">
+    <title>{$title}</title>
+    <meta name="description" content="Browse all {$taxonomyType} and explore articles by topic.">
+</head>
+<body>
+    <p><a href="{$redirectUrl}">Redirecting to {$taxonomyLabel} overview...</a></p>
+    <script>window.location.href = '{$redirectUrl}';</script>
+</body>
+</html>
+HTML;
     }
 }

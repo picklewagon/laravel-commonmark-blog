@@ -92,4 +92,48 @@ class BuildBlogTaxonomyTest extends TestCase
     {
         $this->markTestSkipped('Feature test needs debugging - build command not creating expected files in test environment');
     }
+
+    public function test_generates_taxonomy_overview_index_files()
+    {
+        // Create a test blog post with tags
+        $postContent = "---\ntitle: Test Post\ntags: [\"test-tag\", \"another-tag\"]\ncategories: [\"test-category\"]\n---\n\n# Test Post\n\nThis is a test post.";
+        File::put($this->tempSourcePath . '/blog/test-post.md', $postContent);
+
+        // Enable taxonomies
+        Config::set('blog.taxonomies.tags.enabled', true);
+        Config::set('blog.taxonomies.categories.enabled', true);
+        Config::set('blog.taxonomies.tags.route_prefix', 'blog/tags');
+        Config::set('blog.taxonomies.categories.route_prefix', 'blog/categories');
+
+        // Mock public_path to use our temp directory
+        $this->app->bind('path.public', function() {
+            return $this->tempPublicPath;
+        });
+
+        // Run the blog build command
+        $this->artisan('blog:build', ['source_path' => $this->tempSourcePath]);
+
+        // Check if taxonomy overview index files were created
+        $this->assertTrue(
+            File::exists($this->tempPublicPath . '/blog/tags/index.htm'),
+            'Tags overview index file should be generated'
+        );
+
+        $this->assertTrue(
+            File::exists($this->tempPublicPath . '/blog/categories/index.htm'),
+            'Categories overview index file should be generated'
+        );
+
+        // Verify content of the tags index file
+        $tagsIndexContent = File::get($this->tempPublicPath . '/blog/tags/index.htm');
+        $this->assertStringContainsString('meta http-equiv="refresh"', $tagsIndexContent);
+        $this->assertStringContainsString('url=/blog/tags/', $tagsIndexContent);
+        $this->assertStringContainsString('Tags overview', $tagsIndexContent);
+
+        // Verify content of the categories index file
+        $categoriesIndexContent = File::get($this->tempPublicPath . '/blog/categories/index.htm');
+        $this->assertStringContainsString('meta http-equiv="refresh"', $categoriesIndexContent);
+        $this->assertStringContainsString('url=/blog/categories/', $categoriesIndexContent);
+        $this->assertStringContainsString('Categories overview', $categoriesIndexContent);
+    }
 }

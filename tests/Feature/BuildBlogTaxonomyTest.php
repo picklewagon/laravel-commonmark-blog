@@ -88,17 +88,114 @@ class BuildBlogTaxonomyTest extends TestCase
 
     public function test_builds_taxonomy_archives_with_tags_and_categories()
     {
-        $this->markTestSkipped('Feature test needs debugging - build command not creating expected files in test environment');
+        // Create test blog posts with tags and categories
+        $postContent1 = "---\ntitle: Post One\ntags: [\"php\", \"laravel\"]\ncategories: [\"web-dev\"]\npublished: '2020-01-01 00:00:00'\nmodified: '2020-01-01 00:00:00'\n---\n\n# Post One\n\nContent here.";
+        File::put($this->tempSourcePath . '/blog/post-1.md', $postContent1);
+        
+        $postContent2 = "---\ntitle: Post Two\ntags: [\"php\"]\ncategories: [\"tutorials\"]\npublished: '2020-01-02 00:00:00'\nmodified: '2020-01-02 00:00:00'\n---\n\n# Post Two\n\nMore content.";
+        File::put($this->tempSourcePath . '/blog/post-2.md', $postContent2);
+
+        // Configure taxonomies
+        Config::set('blog.taxonomies.tags.enabled', true);
+        Config::set('blog.taxonomies.categories.enabled', true);
+        Config::set('blog.taxonomies.tags.route_prefix', 'blog/tags');
+        Config::set('blog.taxonomies.categories.route_prefix', 'blog/categories');
+        Config::set('blog.cache.key', 'test-generated-articles');
+
+        // Override public path
+        if (method_exists($this->app, 'usePublicPath')) {
+            $this->app->usePublicPath($this->tempPublicPath);
+        } else {
+            $this->app->instance('path.public', $this->tempPublicPath);
+        }
+
+        // Run build command
+        $this->artisan('blog:build', ['source_path' => $this->tempSourcePath]);
+
+        // Check individual tag archive pages were created
+        $this->assertTrue(File::exists($this->tempPublicPath . '/blog/tags/php/index.htm'));
+        $this->assertTrue(File::exists($this->tempPublicPath . '/blog/tags/laravel/index.htm'));
+        
+        // Check individual category archive pages were created
+        $this->assertTrue(File::exists($this->tempPublicPath . '/blog/categories/web-dev/index.htm'));
+        $this->assertTrue(File::exists($this->tempPublicPath . '/blog/categories/tutorials/index.htm'));
+        
+        // Check content of tag archive
+        $phpTagContent = File::get($this->tempPublicPath . '/blog/tags/php/index.htm');
+        $this->assertStringContainsString('Post One', $phpTagContent);
+        $this->assertStringContainsString('Post Two', $phpTagContent);
+        
+        $laravelTagContent = File::get($this->tempPublicPath . '/blog/tags/laravel/index.htm');
+        $this->assertStringContainsString('Post One', $laravelTagContent);
+        $this->assertStringNotContainsString('Post Two', $laravelTagContent);
     }
 
     public function test_handles_posts_without_taxonomies()
     {
-        $this->markTestSkipped('Feature test needs debugging - build command not creating expected files in test environment');
+        // Create test blog post WITHOUT tags and categories
+        $postContent = "---\ntitle: Plain Post\npublished: '2020-01-01 00:00:00'\nmodified: '2020-01-01 00:00:00'\n---\n\n# Plain Post\n\nNo tags or categories.";
+        File::put($this->tempSourcePath . '/blog/plain-post.md', $postContent);
+
+        // Configure taxonomies
+        Config::set('blog.taxonomies.tags.enabled', true);
+        Config::set('blog.taxonomies.categories.enabled', true);
+        Config::set('blog.cache.key', 'test-generated-articles');
+
+        // Override public path
+        if (method_exists($this->app, 'usePublicPath')) {
+            $this->app->usePublicPath($this->tempPublicPath);
+        } else {
+            $this->app->instance('path.public', $this->tempPublicPath);
+        }
+
+        // Run build command
+        $this->artisan('blog:build', ['source_path' => $this->tempSourcePath]);
+
+        // Check that the post was still created
+        $this->assertTrue(File::exists($this->tempPublicPath . '/blog/plain-post/index.htm'));
+        
+        // Check that NO taxonomy directories were created (no tags/categories to archive)
+        $this->assertFalse(File::exists($this->tempPublicPath . '/blog/tags'));
+        $this->assertFalse(File::exists($this->tempPublicPath . '/blog/categories'));
+        
+        // Verify post content
+        $postHtml = File::get($this->tempPublicPath . '/blog/plain-post/index.htm');
+        $this->assertStringContainsString('Plain Post', $postHtml);
+        $this->assertStringContainsString('No tags or categories', $postHtml);
     }
 
     public function test_respects_taxonomy_configuration()
     {
-        $this->markTestSkipped('Feature test needs debugging - build command not creating expected files in test environment');
+        // Create test blog post with tags and categories
+        $postContent = "---\ntitle: Config Test Post\ntags: [\"test-tag\"]\ncategories: [\"test-category\"]\npublished: '2020-01-01 00:00:00'\nmodified: '2020-01-01 00:00:00'\n---\n\n# Config Test\n\nTesting configuration.";
+        File::put($this->tempSourcePath . '/blog/config-test.md', $postContent);
+
+        // Configure taxonomies - DISABLE categories, enable tags with custom prefix
+        Config::set('blog.taxonomies.tags.enabled', true);
+        Config::set('blog.taxonomies.categories.enabled', false); // DISABLED
+        Config::set('blog.taxonomies.tags.route_prefix', 'custom/tag-archive');
+        Config::set('blog.cache.key', 'test-generated-articles');
+
+        // Override public path
+        if (method_exists($this->app, 'usePublicPath')) {
+            $this->app->usePublicPath($this->tempPublicPath);
+        } else {
+            $this->app->instance('path.public', $this->tempPublicPath);
+        }
+
+        // Run build command
+        $this->artisan('blog:build', ['source_path' => $this->tempSourcePath]);
+
+        // Check that tags were created with CUSTOM PREFIX
+        $this->assertTrue(File::exists($this->tempPublicPath . '/custom/tag-archive/test-tag/index.htm'));
+        $this->assertTrue(File::exists($this->tempPublicPath . '/custom/tag-archive/index.htm'));
+        
+        // Check that categories were NOT created (disabled)
+        $this->assertFalse(File::exists($this->tempPublicPath . '/blog/categories'));
+        
+        // Verify tag content
+        $tagHtml = File::get($this->tempPublicPath . '/custom/tag-archive/test-tag/index.htm');
+        $this->assertStringContainsString('Config Test Post', $tagHtml);
     }
 
     public function test_generates_taxonomy_overview_index_files()

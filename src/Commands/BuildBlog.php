@@ -687,13 +687,13 @@ class BuildBlog extends Command
         // Process tags if enabled
         if (config('blog.taxonomies.tags.enabled', true)) {
             $this->generateTaxonomyArchive('tags', $generatedArticles);
-            $this->generateTaxonomyOverviewIndex('tags');
+            $this->generateTaxonomyOverviewIndex('tags', $generatedArticles);
         }
 
         // Process categories if enabled
         if (config('blog.taxonomies.categories.enabled', true)) {
             $this->generateTaxonomyArchive('categories', $generatedArticles);
-            $this->generateTaxonomyOverviewIndex('categories');
+            $this->generateTaxonomyOverviewIndex('categories', $generatedArticles);
         }
     }
 
@@ -808,16 +808,17 @@ class BuildBlog extends Command
     }
 
     /**
-     * Generate overview index file for a taxonomy directory
+     * Generate overview page for a taxonomy directory
      *
-     * This creates a static index.htm file in the taxonomy directory that redirects
-     * to the Laravel route for the taxonomy overview page, solving the 403 Forbidden
-     * error when accessing /blog/tags/ or /blog/categories/ directly.
+     * This creates a static index.htm file in the taxonomy directory that shows
+     * all available terms for the taxonomy, solving the 403 Forbidden error
+     * when accessing /blog/tags/ or /blog/categories/ directly.
      *
      * @param string $taxonomyType
+     * @param array $generatedArticles
      * @return void
      */
-    protected function generateTaxonomyOverviewIndex(string $taxonomyType): void
+    protected function generateTaxonomyOverviewIndex(string $taxonomyType, array $generatedArticles): void
     {
         $routePrefix = config("blog.taxonomies.{$taxonomyType}.route_prefix", $taxonomyType);
         $taxonomyDir = public_path($routePrefix);
@@ -827,43 +828,72 @@ class BuildBlog extends Command
             return;
         }
         
+        // Get all taxonomy terms with article counts
+        $taxonomy = $this->getAllTaxonomyTerms($taxonomyType, $generatedArticles);
+        
+        if (empty($taxonomy)) {
+            return;
+        }
+        
         $indexPath = $taxonomyDir . '/index.htm';
-        $redirectUrl = "/{$routePrefix}/";
+        $targetURL = "/{$routePrefix}/";
         $title = ucfirst($taxonomyType) . ' - ' . (config('app.name', 'Blog'));
         
-        $content = $this->generateTaxonomyIndexContent($redirectUrl, $title, $taxonomyType);
+        // Prepare taxonomy data with counts and slugs
+        $taxonomyData = [];
+        foreach ($taxonomy as $term => $articles) {
+            $taxonomyData[] = [
+                'name' => $term,
+                'slug' => Str::slug($term),
+                'count' => count($articles),
+                'url' => $targetURL . Str::slug($term) . '/'
+            ];
+        }
         
-        file_put_contents($indexPath, $content);
-        $this->line("Generated overview index: {$routePrefix}/index.htm");
+        // Sort by count descending
+        usort($taxonomyData, function($a, $b) {
+            return $b['count'] - $a['count'];
+        });
+        
+        // Prepare data for the template
+        $data = array_merge(config('blog.defaults', []), [
+            'title' => $title,
+            'description' => "Browse all {$taxonomyType} and explore articles by topic.",
+            'canonical' => $this->makeURLAbsolute($targetURL),
+            'header' => $this->prepareLaravelSEOHeaders([
+                'title' => $title,
+                'description' => "Browse all {$taxonomyType} and explore articles by topic.",
+                'canonical' => $this->makeURLAbsolute($targetURL),
+            ]),
+            'content' => '',
+            'taxonomy_type' => $taxonomyType,
+            'taxonomy_data' => $taxonomyData,
+            'total_terms' => count($taxonomyData),
+        ]);
+        
+        // Try to use a taxonomy overview template first, then fallback to archive template, then to list template
+        $templates = [
+            "blog.templates.blog.{$taxonomyType}_overview",
+            config("blog.taxonomies.{$taxonomyType}.archive_template"),
+            'blog.templates.blog.list'
+        ];
+        
+        $template = null;
+        foreach ($templates as $templateCandidate) {
+            if (!is_null($templateCandidate) && !is_null(config($templateCandidate)) && view()->exists(config($templateCandidate))) {
+                $template = $templateCandidate;
+                break;
+            }
+        }
+        
+        if (is_null($template) || is_null(config($template))) {
+            $this->error("No suitable template found for {$taxonomyType} overview page.");
+            return;
+        }
+        
+        // Render and save the file
+        file_put_contents($indexPath, view(config($template), $data)->render());
+        $this->line("Generated overview page: {$routePrefix}/index.htm");
     }
 
-    /**
-     * Generate the HTML content for taxonomy overview index files
-     *
-     * @param string $redirectUrl
-     * @param string $title
-     * @param string $taxonomyType
-     * @return string
-     */
-    protected function generateTaxonomyIndexContent(string $redirectUrl, string $title, string $taxonomyType): string
-    {
-        $taxonomyLabel = ucfirst($taxonomyType);
-        
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="refresh" content="0;url={$redirectUrl}">
-    <link rel="canonical" href="{$redirectUrl}">
-    <title>{$title}</title>
-    <meta name="description" content="Browse all {$taxonomyType} and explore articles by topic.">
-</head>
-<body>
-    <p><a href="{$redirectUrl}">Redirecting to {$taxonomyLabel} overview...</a></p>
-    <script>window.location.href = '{$redirectUrl}';</script>
-</body>
-</html>
-HTML;
-    }
 }

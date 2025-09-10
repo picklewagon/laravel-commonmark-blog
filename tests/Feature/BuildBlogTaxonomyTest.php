@@ -118,8 +118,14 @@ class BuildBlogTaxonomyTest extends TestCase
         Config::set('blog.cache.key', 'test-generated-articles');
         Config::set('blog.cache.expiry', 3600);
 
-        // Override the public_path helper to use our temp directory
-        $this->app->usePublicPath($this->tempPublicPath);
+        // Override the public_path helper to use our temp directory (Laravel 9/10+ compatible)
+        if (method_exists($this->app, 'usePublicPath')) {
+            // Laravel 10+
+            $this->app->usePublicPath($this->tempPublicPath);
+        } else {
+            // Laravel 9 - use the container binding approach
+            $this->app->instance('path.public', $this->tempPublicPath);
+        }
 
         // Run the blog build command
         $this->artisan('blog:build', ['source_path' => $this->tempSourcePath]);

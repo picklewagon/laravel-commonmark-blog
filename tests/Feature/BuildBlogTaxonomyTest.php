@@ -37,6 +37,8 @@ class BuildBlogTaxonomyTest extends TestCase
         Config::set('blog.source_path', $this->tempSourcePath);
         Config::set('blog.templates.blog.article', 'test-article-template');
         Config::set('blog.templates.blog.list', 'test-list-template');
+        Config::set('blog.templates.blog.tags_overview', 'test-taxonomy-overview-template');
+        Config::set('blog.templates.blog.categories_overview', 'test-taxonomy-overview-template');
 
         // Create mock view templates
         $this->createMockViews();
@@ -76,6 +78,12 @@ class BuildBlogTaxonomyTest extends TestCase
                 '<html><head>{!! $header !!}</head><body><h1>{{ $title }}</h1>@foreach($articles as $article)<div>{{ $article["title"] }}</div>@endforeach</body></html>'
             );
         }
+
+        if (!File::exists($viewPath . '/test-taxonomy-overview-template.blade.php')) {
+            File::put($viewPath . '/test-taxonomy-overview-template.blade.php', 
+                '<html><head>{!! $header !!}</head><body><h1>{{ $title }}</h1>@if(isset($taxonomy_data))@foreach($taxonomy_data as $term)<div>{{ $term["name"] }} ({{ $term["count"] }})</div>@endforeach @endif</body></html>'
+            );
+        }
     }
 
     public function test_builds_taxonomy_archives_with_tags_and_categories()
@@ -96,7 +104,7 @@ class BuildBlogTaxonomyTest extends TestCase
     public function test_generates_taxonomy_overview_index_files()
     {
         // Create a test blog post with tags
-        $postContent = "---\ntitle: Test Post\ntags: [\"test-tag\", \"another-tag\"]\ncategories: [\"test-category\"]\n---\n\n# Test Post\n\nThis is a test post.";
+        $postContent = "---\ntitle: Test Post\ntags: [\"test-tag\", \"another-tag\"]\ncategories: [\"test-category\"]\npublished: '2023-01-01 00:00:00'\nmodified: '2023-01-01 00:00:00'\n---\n\n# Test Post\n\nThis is a test post.";
         File::put($this->tempSourcePath . '/blog/test-post.md', $postContent);
 
         // Enable taxonomies
@@ -124,16 +132,23 @@ class BuildBlogTaxonomyTest extends TestCase
             'Categories overview index file should be generated'
         );
 
-        // Verify content of the tags index file
+        // Verify content of the tags index file - should be actual content, not redirect
         $tagsIndexContent = File::get($this->tempPublicPath . '/blog/tags/index.htm');
-        $this->assertStringContainsString('meta http-equiv="refresh"', $tagsIndexContent);
-        $this->assertStringContainsString('url=/blog/tags/', $tagsIndexContent);
-        $this->assertStringContainsString('Tags overview', $tagsIndexContent);
+        $this->assertStringContainsString('<html>', $tagsIndexContent);
+        $this->assertStringContainsString('Tags', $tagsIndexContent);
+        $this->assertStringContainsString('test-tag', $tagsIndexContent);
+        $this->assertStringContainsString('another-tag', $tagsIndexContent);
+        
+        // Should NOT contain redirect meta tags anymore
+        $this->assertStringNotContainsString('meta http-equiv="refresh"', $tagsIndexContent);
 
-        // Verify content of the categories index file
+        // Verify content of the categories index file - should be actual content, not redirect
         $categoriesIndexContent = File::get($this->tempPublicPath . '/blog/categories/index.htm');
-        $this->assertStringContainsString('meta http-equiv="refresh"', $categoriesIndexContent);
-        $this->assertStringContainsString('url=/blog/categories/', $categoriesIndexContent);
-        $this->assertStringContainsString('Categories overview', $categoriesIndexContent);
+        $this->assertStringContainsString('<html>', $categoriesIndexContent);
+        $this->assertStringContainsString('Categories', $categoriesIndexContent);
+        $this->assertStringContainsString('test-category', $categoriesIndexContent);
+        
+        // Should NOT contain redirect meta tags anymore
+        $this->assertStringNotContainsString('meta http-equiv="refresh"', $categoriesIndexContent);
     }
 }

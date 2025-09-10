@@ -209,6 +209,9 @@ class BuildBlog extends Command
         // Generate taxonomy archive pages
         $this->generateTaxonomyArchives($generatedArticles);
 
+        // Check for slug conflicts and warn if any are found
+        $this->detectSlugConflicts($generatedArticles);
+
         // Return the list of generated articles for later caching.
         return $generatedArticles;
     }
@@ -281,7 +284,7 @@ class BuildBlog extends Command
         $data = $this->prepareData($file->getRealPath());
 
         // Define the target directory and create it (optionally).
-        $targetURL = preg_replace('/\.md$/', '/', $file->getRelativePathname());
+        $targetURL = $this->generateTargetURL($file, $data);
         $targetDirectory = public_path($targetURL);
         if (!file_exists($targetDirectory)) {
             mkdir($targetDirectory);
@@ -803,5 +806,67 @@ class BuildBlog extends Command
         }
 
         return $taxonomy;
+    }
+
+    /**
+     * Generate the target URL for an article based on configuration
+     *
+     * @param SplFileInfo $file
+     * @param array $data
+     * @return string
+     */
+    protected function generateTargetURL(SplFileInfo $file, array $data): string
+    {
+        $slugSource = config('blog.slug_source', 'filename');
+        
+        if ($slugSource === 'frontmatter' && isset($data['slug']) && !empty($data['slug'])) {
+            // Use frontmatter slug
+            $slug = Str::slug($data['slug']);
+            
+            // Get the directory path from the file
+            $directory = dirname($file->getRelativePathname());
+            if ($directory === '.') {
+                $directory = '';
+            } else {
+                $directory = $directory . '/';
+            }
+            
+            return $directory . $slug . '/';
+        }
+        
+        // Default behavior: use filename
+        return preg_replace('/\.md$/', '/', $file->getRelativePathname());
+    }
+
+    /**
+     * Detect and warn about slug conflicts
+     *
+     * @param array $generatedArticles
+     * @return void
+     */
+    protected function detectSlugConflicts(array $generatedArticles): void
+    {
+        $urlCounts = [];
+        
+        foreach ($generatedArticles as $article) {
+            $url = $article['generated_url'];
+            if (!isset($urlCounts[$url])) {
+                $urlCounts[$url] = 0;
+            }
+            $urlCounts[$url]++;
+        }
+        
+        $conflicts = array_filter($urlCounts, function($count) {
+            return $count > 1;
+        });
+        
+        if (!empty($conflicts)) {
+            $this->newLine();
+            $this->error('WARNING: Slug conflicts detected!');
+            foreach ($conflicts as $url => $count) {
+                $this->error("- URL '$url' is used by $count articles");
+            }
+            $this->error('This may cause articles to overwrite each other.');
+        }
     }
 }

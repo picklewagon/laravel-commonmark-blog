@@ -19,6 +19,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Slug Source
+    |--------------------------------------------------------------------------
+    |
+    | This option controls how blog post URLs are generated:
+    | - 'filename': URLs are generated from the file path (default, backward compatible)
+    | - 'frontmatter': URLs are generated from the 'slug' field in frontmatter,
+    |   with fallback to filename if no slug is present
+    |
+    */
+
+    'slug_source' => env('BLOG_SLUG_SOURCE', 'filename'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Base Templates
     |--------------------------------------------------------------------------
     |

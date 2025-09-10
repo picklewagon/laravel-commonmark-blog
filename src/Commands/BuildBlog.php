@@ -893,7 +893,7 @@ class BuildBlog extends Command
         
         // Render and save the file
         file_put_contents($indexPath, view(config($template), $data)->render());
-        $this->line("Generated overview page: {$routePrefix}/index.htm");
+        $this->info("Generated overview page: {$routePrefix}/index.htm");
     }
 
 }

@@ -103,20 +103,23 @@ class BuildBlogTaxonomyTest extends TestCase
 
     public function test_generates_taxonomy_overview_index_files()
     {
-        // Create a test blog post with tags
-        $postContent = "---\ntitle: Test Post\ntags: [\"test-tag\", \"another-tag\"]\ncategories: [\"test-category\"]\npublished: '2023-01-01 00:00:00'\nmodified: '2023-01-01 00:00:00'\n---\n\n# Test Post\n\nThis is a test post.";
-        File::put($this->tempSourcePath . '/blog/test-post.md', $postContent);
+        // Create multiple test blog posts with tags (use a past date to ensure it gets published)
+        $postContent1 = "---\ntitle: Test Post One\ntags: [\"test-tag\", \"another-tag\"]\ncategories: [\"test-category\"]\npublished: '2020-01-01 00:00:00'\nmodified: '2020-01-01 00:00:00'\n---\n\n# Test Post One\n\nThis is a test post.";
+        File::put($this->tempSourcePath . '/blog/test-post-1.md', $postContent1);
+        
+        $postContent2 = "---\ntitle: Test Post Two\ntags: [\"test-tag\"]\ncategories: [\"test-category\"]\npublished: '2020-01-02 00:00:00'\nmodified: '2020-01-02 00:00:00'\n---\n\n# Test Post Two\n\nThis is another test post.";
+        File::put($this->tempSourcePath . '/blog/test-post-2.md', $postContent2);
 
-        // Enable taxonomies
+        // Enable taxonomies and caching
         Config::set('blog.taxonomies.tags.enabled', true);
         Config::set('blog.taxonomies.categories.enabled', true);
         Config::set('blog.taxonomies.tags.route_prefix', 'blog/tags');
         Config::set('blog.taxonomies.categories.route_prefix', 'blog/categories');
+        Config::set('blog.cache.key', 'test-generated-articles');
+        Config::set('blog.cache.expiry', 3600);
 
-        // Mock public_path to use our temp directory
-        $this->app->bind('path.public', function() {
-            return $this->tempPublicPath;
-        });
+        // Override the public_path helper to use our temp directory
+        $this->app->usePublicPath($this->tempPublicPath);
 
         // Run the blog build command
         $this->artisan('blog:build', ['source_path' => $this->tempSourcePath]);

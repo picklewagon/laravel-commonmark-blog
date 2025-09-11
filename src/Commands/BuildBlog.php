@@ -690,11 +690,13 @@ class BuildBlog extends Command
         // Process tags if enabled
         if (config('blog.taxonomies.tags.enabled', true)) {
             $this->generateTaxonomyArchive('tags', $generatedArticles);
+            $this->generateTaxonomyOverviewIndex('tags', $generatedArticles);
         }
 
         // Process categories if enabled
         if (config('blog.taxonomies.categories.enabled', true)) {
             $this->generateTaxonomyArchive('categories', $generatedArticles);
+            $this->generateTaxonomyOverviewIndex('categories', $generatedArticles);
         }
     }
 
@@ -806,6 +808,95 @@ class BuildBlog extends Command
         }
 
         return $taxonomy;
+    }
+
+    /**
+     * Generate overview page for a taxonomy directory
+     *
+     * This creates a static index.htm file in the taxonomy directory that shows
+     * all available terms for the taxonomy, solving the 403 Forbidden error
+     * when accessing /blog/tags/ or /blog/categories/ directly.
+     *
+     * @param string $taxonomyType
+     * @param array $generatedArticles
+     * @return void
+     */
+    protected function generateTaxonomyOverviewIndex(string $taxonomyType, array $generatedArticles): void
+    {
+        $routePrefix = config("blog.taxonomies.{$taxonomyType}.route_prefix", $taxonomyType);
+        $taxonomyDir = public_path($routePrefix);
+        
+        // Only generate index if the taxonomy directory exists (has individual archive pages)
+        if (!is_dir($taxonomyDir)) {
+            return;
+        }
+        
+        // Get all taxonomy terms with article counts
+        $taxonomy = $this->getAllTaxonomyTerms($taxonomyType, $generatedArticles);
+        
+        if (empty($taxonomy)) {
+            return;
+        }
+        
+        $indexPath = $taxonomyDir . '/index.htm';
+        $targetURL = "/{$routePrefix}/";
+        $title = ucfirst($taxonomyType) . ' - ' . (config('app.name', 'Blog'));
+        
+        // Prepare taxonomy data with counts and slugs
+        $taxonomyData = [];
+        foreach ($taxonomy as $term => $articles) {
+            $taxonomyData[] = [
+                'name' => $term,
+                'slug' => Str::slug($term),
+                'count' => count($articles),
+                'url' => $targetURL . Str::slug($term) . '/'
+            ];
+        }
+        
+        // Sort by count descending
+        usort($taxonomyData, function($a, $b) {
+            return $b['count'] - $a['count'];
+        });
+        
+        // Prepare data for the template
+        $data = array_merge(config('blog.defaults', []), [
+            'title' => $title,
+            'description' => "Browse all {$taxonomyType} and explore articles by topic.",
+            'canonical' => $this->makeURLAbsolute($targetURL),
+            'header' => $this->prepareLaravelSEOHeaders([
+                'title' => $title,
+                'description' => "Browse all {$taxonomyType} and explore articles by topic.",
+                'canonical' => $this->makeURLAbsolute($targetURL),
+            ]),
+            'content' => '',
+            'taxonomy_type' => $taxonomyType,
+            'taxonomy_data' => $taxonomyData,
+            'total_terms' => count($taxonomyData),
+        ]);
+        
+        // Try to use a taxonomy overview template first, then fallback to archive template, then to list template
+        $templates = [
+            "blog.templates.blog.{$taxonomyType}_overview",
+            config("blog.taxonomies.{$taxonomyType}.archive_template"),
+            'blog.templates.blog.list'
+        ];
+        
+        $template = null;
+        foreach ($templates as $templateCandidate) {
+            if (!is_null($templateCandidate) && !is_null(config($templateCandidate)) && view()->exists(config($templateCandidate))) {
+                $template = $templateCandidate;
+                break;
+            }
+        }
+        
+        if (is_null($template) || is_null(config($template))) {
+            $this->error("No suitable template found for {$taxonomyType} overview page.");
+            return;
+        }
+        
+        // Render and save the file
+        file_put_contents($indexPath, view(config($template), $data)->render());
+        $this->info("Generated overview page: {$routePrefix}/index.htm");
     }
 
     /**

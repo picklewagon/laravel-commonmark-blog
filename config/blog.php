@@ -46,6 +46,8 @@ return [
         'blog' => [
             'article' => env('BLOG_ARTICLE_BASE_TEMPLATE', 'content/blog/article'),
             'list' => env('BLOG_LIST_BASE_TEMPLATE', 'content/blog/list'),
+            'tags_overview' => env('BLOG_TAGS_OVERVIEW_TEMPLATE', 'content/blog/tags-overview'),
+            'categories_overview' => env('BLOG_CATEGORIES_OVERVIEW_TEMPLATE', 'content/blog/categories-overview'),
             'list_per_page' => 12,
         ],
     ],

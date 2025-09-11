@@ -299,6 +299,69 @@ Tags and categories are automatically available in your article templates:
 - **Structured content**: Archive pages provide additional indexed content and internal linking
 - **Better organization**: Improved content discoverability for both users and search engines
 
+### Configurable Slug Source
+
+Control how blog post URLs are generated with the configurable slug source feature.
+
+#### Configuration
+
+Set the slug source in `config/blog.php`:
+
+```php
+'slug_source' => env('BLOG_SLUG_SOURCE', 'filename'), // 'filename' or 'frontmatter'
+```
+
+#### Filename-based URLs (Default)
+
+URLs generated from file paths (maintains backward compatibility):
+
+```
+File: content/blog/my-messy-filename.md
+URL:  /blog/my-messy-filename/
+```
+
+#### Frontmatter-based URLs
+
+URLs generated from `slug` field in frontmatter, with fallback to filename:
+
+```yaml
+---
+title: "My Clean Post Title"
+slug: "clean-post-title"
+published: "2024-01-15"
+---
+```
+
+```
+File: content/blog/2024-01-15-detailed-filename-for-organization.md
+URL:  /blog/clean-post-title/  (uses slug from frontmatter)
+```
+
+#### Benefits
+
+- **File organization flexibility**: Organize files however you want without affecting URLs
+- **Clean URLs**: SEO-friendly URLs independent of file naming conventions
+- **Backward compatibility**: Default behavior unchanged
+- **Migration friendly**: Existing sites continue working, new sites can opt-in
+
+#### Slug Conflict Detection
+
+The build process automatically detects and warns about conflicting slugs:
+
+```
+WARNING: Slug conflicts detected!
+- URL 'blog/same-slug/' is used by 2 articles
+This may cause articles to overwrite each other.
+```
+
+#### Fallback Behavior
+
+When `slug_source` is set to `'frontmatter'`:
+- If no `slug` field is present → falls back to filename
+- If `slug` field is empty → falls back to filename
+- Slugs are automatically sanitized (special characters removed, lowercased)
+
+
 ## Requirements & Installation
 
 ### Requirements

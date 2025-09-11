@@ -9,20 +9,51 @@ use Illuminate\Support\Facades\Artisan;
 
 class SlugFeatureTest extends TestCase
 {
+    protected $tempSourcePath;
+    protected $tempPublicPath;
+
     protected function setUp(): void
     {
         parent::setUp();
         
-        // Ensure clean slate
+        // Create temporary directories for testing
+        $this->tempSourcePath = storage_path('testing/blog_source');
+        $this->tempPublicPath = storage_path('testing/blog_public');
+
+        // Clean up and create fresh directories
+        if (File::exists($this->tempSourcePath)) {
+            File::deleteDirectory($this->tempSourcePath);
+        }
+        if (File::exists($this->tempPublicPath)) {
+            File::deleteDirectory($this->tempPublicPath);
+        }
+
+        File::makeDirectory($this->tempSourcePath, 0755, true);
+        File::makeDirectory($this->tempPublicPath, 0755, true);
+        
+        // Create blog subdirectory
+        File::makeDirectory($this->tempSourcePath . '/blog', 0755, true);
+        
+        // Ensure clean slate for public path too
         if (File::exists(public_path())) {
             File::deleteDirectory(public_path());
         }
         File::makeDirectory(public_path(), 0755, true);
+        
+        // Configure templates to use our mock templates
+        Config::set('blog.templates.blog.article', 'mock-article');
+        Config::set('blog.templates.blog.list', 'mock-list');
     }
 
     protected function tearDown(): void
     {
         // Clean up after tests
+        if (File::exists($this->tempSourcePath)) {
+            File::deleteDirectory($this->tempSourcePath);
+        }
+        if (File::exists($this->tempPublicPath)) {
+            File::deleteDirectory($this->tempPublicPath);
+        }
         if (File::exists(public_path())) {
             File::deleteDirectory(public_path());
         }
@@ -33,7 +64,7 @@ class SlugFeatureTest extends TestCase
     /** @test */
     public function it_builds_blog_with_filename_based_urls_by_default()
     {
-        Config::set('blog.source_path', $this->contentPath);
+        Config::set('blog.source_path', $this->tempSourcePath);
         Config::set('blog.slug_source', 'filename');
         
         // Create test content
@@ -54,7 +85,7 @@ class SlugFeatureTest extends TestCase
     /** @test */
     public function it_builds_blog_with_frontmatter_based_urls_when_configured()
     {
-        Config::set('blog.source_path', $this->contentPath);
+        Config::set('blog.source_path', $this->tempSourcePath);
         Config::set('blog.slug_source', 'frontmatter');
         
         // Create test content
@@ -75,7 +106,7 @@ class SlugFeatureTest extends TestCase
     /** @test */
     public function it_falls_back_to_filename_when_no_slug_in_frontmatter()
     {
-        Config::set('blog.source_path', $this->contentPath);
+        Config::set('blog.source_path', $this->tempSourcePath);
         Config::set('blog.slug_source', 'frontmatter');
         
         // Create test content without slug
@@ -95,7 +126,7 @@ class SlugFeatureTest extends TestCase
     /** @test */
     public function it_sanitizes_frontmatter_slugs_properly()
     {
-        Config::set('blog.source_path', $this->contentPath);
+        Config::set('blog.source_path', $this->tempSourcePath);
         Config::set('blog.slug_source', 'frontmatter');
         
         // Create test content with messy slug
@@ -115,7 +146,7 @@ class SlugFeatureTest extends TestCase
     /** @test */
     public function it_preserves_directory_structure_with_frontmatter_slugs()
     {
-        Config::set('blog.source_path', $this->contentPath);
+        Config::set('blog.source_path', $this->tempSourcePath);
         Config::set('blog.slug_source', 'frontmatter');
         
         // Create test content in nested directory
@@ -136,7 +167,7 @@ class SlugFeatureTest extends TestCase
     /** @test */
     public function it_warns_about_slug_conflicts()
     {
-        Config::set('blog.source_path', $this->contentPath);
+        Config::set('blog.source_path', $this->tempSourcePath);
         Config::set('blog.slug_source', 'frontmatter');
         
         // Create two articles with the same slug
@@ -172,7 +203,7 @@ class SlugFeatureTest extends TestCase
      */
     private function createTestArticle(string $path, array $frontmatter, string $content): void
     {
-        $fullPath = $this->contentPath . '/' . $path;
+        $fullPath = $this->tempSourcePath . '/' . $path;
         
         // Create directory if it doesn't exist
         File::makeDirectory(dirname($fullPath), 0755, true, true);

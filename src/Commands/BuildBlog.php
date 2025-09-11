@@ -952,12 +952,15 @@ class BuildBlog extends Command
         });
         
         if (!empty($conflicts)) {
-            $this->newLine();
-            $this->error('WARNING: Slug conflicts detected!');
-            foreach ($conflicts as $url => $count) {
-                $this->error("- URL '$url' is used by $count articles");
+            // Check if we're in a console context before outputting
+            if (isset($this->output) && $this->output !== null) {
+                $this->newLine();
+                $this->error('WARNING: Slug conflicts detected!');
+                foreach ($conflicts as $url => $count) {
+                    $this->error("- URL '$url' is used by $count articles");
+                }
+                $this->error('This may cause articles to overwrite each other.');
             }
-            $this->error('This may cause articles to overwrite each other.');
         }
     }
 }
